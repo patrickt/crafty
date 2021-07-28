@@ -86,7 +86,7 @@ expression = Expr.buildExpressionParser table call <?> "expression"
 (<$$>) :: Functor f => (a -> b -> c) -> f b -> f (a -> c)
 a <$$> b = flip a <$> b
 
-table :: (TokenParsing m, Monad m) => [[Expr.Operator m Expr]]
+table :: (TokenParsing m) => [[Expr.Operator m Expr]]
 table =
   [ [ prefix "!" (Prefix Not),
       prefix "-" (Prefix Neg)

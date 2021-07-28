@@ -1,27 +1,34 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-module CST
-  ( Ident (..)
-  , Primary (..)
-  , Expr (..)
-  , Infix (..)
-  , Prefix (..)
-  ) where
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
-import Prelude hiding (Ordering (..))
-import Data.Scientific (Scientific)
-import Data.Text (Text)
+module CST
+  ( Ident (..),
+    Primary (..),
+    Expr (..),
+    ExprF (..),
+    Infix (..),
+    Prefix (..),
+    Stmt (..),
+    Func (..),
+    Decl (..),
+  )
+where
+
 import Data.Functor.Foldable hiding (Nil)
 import Data.Functor.Foldable.TH
+import Data.Scientific (Scientific)
 import Data.String (IsString)
+import Data.Text (Text)
 import Prettyprinter (Pretty (..), (<+>))
 import Prettyprinter qualified as Doc
+import Prelude hiding (Ordering (..))
 
 newtype Ident = Id Text
   deriving stock (Eq, Show)
@@ -86,10 +93,57 @@ data Expr
 makeBaseFunctor ''Expr
 
 instance Pretty Expr where
-  pretty = cata $ \case
+  pretty = cata \case
     AssignF a b -> a <+> "=" <+> b
     InfixF op a b -> a <+> pretty op <+> b
     DotF l r -> l <> "." <> pretty r
     PrefixF op a -> pretty op <> a
     CallF fn args -> fn <> Doc.tupled args
     PrimaryF p -> pretty p
+
+data Func = Func Ident [Ident] [Decl]
+
+instance Pretty Func where
+  pretty (Func n args b) = pretty n <> Doc.tupled (fmap pretty args) <+> Doc.encloseSep "{" "}" Doc.hardline (fmap pretty b)
+
+
+data Decl
+  = Class Ident (Maybe Ident) [Func]
+  | Fun Func
+  | Var Ident (Maybe Expr)
+  | Stmt Stmt
+
+instance Pretty Decl where
+  pretty = \case
+    Class id ext fns ->
+      Doc.hsep
+        [ "class",
+          pretty id,
+          maybe mempty (\a -> "<" <+> pretty a) ext,
+          Doc.encloseSep "{" "}" Doc.hardline (fmap pretty fns)
+        ]
+    Fun f -> "fun" <+> pretty f
+    Var i e -> "var" <+> pretty i <+> maybe mempty (\a -> "=" <+> pretty a) e
+    Stmt s -> pretty s
+
+data Stmt
+  = Expr Expr
+  | For Stmt (Maybe Expr) (Maybe Expr) Stmt
+  | If Expr Stmt (Maybe Stmt)
+  | Print Expr
+  | Return Expr
+  | While Expr Stmt
+  | Block [Decl]
+
+makeBaseFunctor ''Stmt
+
+instance Pretty Stmt where
+  pretty = cata \case
+    ExprF e -> pretty e
+    ForF a b c s ->
+      "for" <+> Doc.encloseSep "(" ")" ";" [a, maybe mempty pretty b, maybe mempty pretty c] <+> s
+    --IfF a b c -> "if" <+> Doc.parens (pretty a) <+> b <> maybe ("else" <+>) mempty c
+    PrintF e -> "print" <+> pretty e
+    ReturnF e -> "return" <+> pretty e
+    WhileF e s -> "while" <+> Doc.parens (pretty e) <+> s
+    BlockF d -> Doc.encloseSep "{" "}" Doc.hardline (fmap pretty d)
