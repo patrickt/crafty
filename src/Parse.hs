@@ -89,32 +89,32 @@ a <$$> b = flip a <$> b
 
 table :: (TokenParsing m) => [[Expr.Operator m Expr]]
 table =
-  [ [ prefix "!" (Prefix Not),
-      prefix "-" (Prefix Neg)
+  [ [ prefix "!" Not,
+      prefix "-" Neg
     ],
     -- fixme: use Op.associativity here
-    [ binary "*" (Infix Mult) Expr.AssocLeft,
-      binary "/" (Infix Div) Expr.AssocLeft
+    [ binary "*" Mult,
+      binary "/" Div
     ],
-    [ binary "+" (Infix Plus) Expr.AssocLeft,
-      binary "-" (Infix Minus) Expr.AssocLeft
+    [ binary "+" Plus,
+      binary "-" Minus
     ],
-    [ binary "<=" (Infix LTE) Expr.AssocNone,
-      binary ">=" (Infix GTE) Expr.AssocNone,
-      binary ">" (Infix GT) Expr.AssocNone,
-      binary "<" (Infix LT) Expr.AssocNone
+    [ binary "<=" LTE,
+      binary ">=" GTE,
+      binary ">" GT,
+      binary "<" LT
     ],
-    [ binary "==" (Infix Eq) Expr.AssocLeft,
-      binary "!=" (Infix Neq) Expr.AssocLeft
+    [ binary "==" Eq,
+      binary "!=" Neq
     ],
-    [ binary "and" (Infix And) Expr.AssocRight
+    [ binary "and" And
     ],
-    [ binary "or" (Infix Or) Expr.AssocRight
+    [ binary "or" Or
     ]
   ]
   where
-    binary name fun = Expr.Infix (fun <$ Token.symbol name)
-    prefix name fun = Expr.Prefix (fun <$ Token.symbol name)
+    binary name fun = Expr.Infix (Infix fun <$ Token.symbol name) (CST.associativity fun)
+    prefix name fun = Expr.Prefix (Prefix fun <$ Token.symbol name)
 
 --postfix name fun  = Postfix (fun <$ reservedOp name)
 
