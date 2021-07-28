@@ -1,21 +1,20 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
+{-# LANGUAGE TypeFamilies #-}
 
-module Parse where
+module Parse (assignment, expression, testParse, reservedWords) where
 
+import CST
+import Control.Applicative
 import Control.Carrier.Parser.Church qualified as P
 import Control.Effect.Parser.Notice
 import Control.Effect.Parser.Source
 import Data.Foldable (foldl')
 import Data.Function ((&))
-import Data.Monoid
-import Data.Scientific (Scientific)
+import Data.HashSet (HashSet)
+import Data.Hashable (Hashable)
 import Data.String (IsString)
-import Data.Text (Text)
 import Prettyprinter (line)
 import Prettyprinter.Render.Text
 import Text.Parser.Combinators
@@ -23,32 +22,41 @@ import Text.Parser.Expression qualified as Expr
 import Text.Parser.Token (TokenParsing)
 import Text.Parser.Token qualified as Token
 import Text.Parser.Token.Style qualified as Token
+import Prelude hiding (Ordering (..))
+
+reservedWords :: (IsString s, Hashable s, Eq s) => HashSet s
+reservedWords =
+  [ "true",
+    "false",
+    "nil",
+    "this",
+    "super",
+    "!",
+    "-",
+    "*",
+    "/",
+    "*",
+    "<=",
+    ">=",
+    "<",
+    ">",
+    "==",
+    "!=",
+    "and",
+    "or"
+  ]
 
 style :: TokenParsing m => Token.IdentifierStyle m
 style =
   Token.emptyIdents
-    { Token._styleReserved = ["true", "false", "nil", "this", "super"]
+    { Token._styleReserved = reservedWords
     }
-
-newtype Ident = Id Text
-  deriving stock (Eq, Show)
-  deriving newtype (IsString)
 
 ident :: (TokenParsing m, Monad m) => m Ident
 ident = Id <$> Token.ident style
 
 reserved :: (TokenParsing m, Monad m) => String -> m ()
 reserved = Token.reserve style
-
-data Primary
-  = Bool Bool
-  | Nil
-  | This
-  | Number (Either Integer Scientific)
-  | Ident Ident
-  | Paren Expr
-  | Super Ident
-  deriving stock (Show)
 
 primary :: (TokenParsing m, Monad m) => m Expr
 primary =
@@ -60,25 +68,17 @@ primary =
         This <$ reserved "this",
         Number <$> Token.naturalOrScientific,
         Ident <$> ident,
-        Paren <$> Token.parens expression,
+        Paren <$> Token.parens assignment,
         Super <$> (reserved "super" *> Token.dot *> ident)
       ]
     <?> "primary expression"
 
-data Infix = Or | And | Eq | Neq | Plus | Minus | Mult | Div | LT | LTE | GT | GTE
-  deriving stock (Show)
-
-data Prefix = Not | Neg
-  deriving stock (Show)
-
-data Expr
-  = Assign (Maybe Expr) Ident Expr
-  | Infix Infix Expr Expr
-  | Dot Expr Ident
-  | Prefix Prefix Expr
-  | Call Expr [Expr]
-  | Primary Primary
-  deriving stock (Show)
+assignment :: (TokenParsing m, Monad m) => m Expr
+assignment = try assign <|> expression
+  where
+    assign = Assign <$> lhs <*> (reserved "=" *> expression)
+    first = Primary . Ident <$> ident
+    lhs = foldl' (&) <$> first <*> many (Dot <$$> (Token.dot *> ident))
 
 expression :: (TokenParsing m, Monad m) => m Expr
 expression = Expr.buildExpressionParser table call <?> "expression"
@@ -93,27 +93,36 @@ table =
     ],
     [ binary "*" (Infix Mult) Expr.AssocLeft,
       binary "/" (Infix Div) Expr.AssocLeft
+    ],
+    [ binary "+" (Infix Plus) Expr.AssocLeft,
+      binary "-" (Infix Minus) Expr.AssocLeft
+    ],
+    [ binary "<=" (Infix LTE) Expr.AssocNone,
+      binary ">=" (Infix GTE) Expr.AssocNone,
+      binary ">" (Infix GT) Expr.AssocNone,
+      binary "<" (Infix LT) Expr.AssocNone
+    ],
+    [ binary "==" (Infix Eq) Expr.AssocLeft,
+      binary "!=" (Infix Neq) Expr.AssocLeft
+    ],
+    [ binary "and" (Infix And) Expr.AssocRight,
+      binary "or" (Infix Or) Expr.AssocRight
     ]
   ]
   where
-    binary name fun = Expr.Infix (fun <$ reserved name)
-    prefix name fun = Expr.Prefix (fun <$ reserved name)
+    binary name fun = Expr.Infix (fun <$ Token.symbol name)
+    prefix name fun = Expr.Prefix (fun <$ Token.symbol name)
 
 --postfix name fun  = Postfix (fun <$ reservedOp name)
 
 call :: (TokenParsing m, Monad m) => m Expr
-call = do
-  lhs <- primary
-  rhs <-
-    many
-      ( choice
-          [ Token.parens (Call <$$> (expression `sepBy` Token.comma)),
-            Dot <$$> (Token.dot *> ident)
-          ]
-      )
-  pure (foldl' (&) lhs rhs)
+call = foldl' (&) <$> primary <*> many suffix
+  where
+    args = Token.parens (Call <$$> (expression `sepBy` Token.comma))
+    dot = Dot <$$> (Token.dot *> ident)
+    suffix = choice [args, dot]
 
-parse :: Show a => P.ParserC (Either (Source, P.Err)) a -> String -> IO ()
-parse p s = do
+testParse :: Show a => P.ParserC (Either (Source, P.Err)) a -> String -> IO ()
+testParse p s = do
   let v = P.runParserWithString 0 s p
   either (putDoc . (<> line) . prettyNotice . uncurry P.errToNotice) print v
