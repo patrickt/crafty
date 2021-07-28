@@ -1,0 +1,65 @@
+cabal-version:       2.4
+name:                crafty
+version:             0.0.0.0
+synopsis:            An implementation of the Lox language from Crafting Interpreters.
+description:         An implementation of the Lox language from Crafting Interpreters.
+homepage:            https://github.com/patrickt/crafty
+bug-reports:         https://github.com/patrickt/crafty/issues
+license:             GPL-3.0-only
+license-file:        LICENSE
+author:              Patrick Thomson
+maintainer:          Patrick Thomson <patrickt@github.com>
+copyright:           2021 Patrick Thomson
+category:            Compilers/Interpreters
+build-type:          Simple
+extra-doc-files:     README.md
+                     CHANGELOG.md
+tested-with:         GHC == 8.8.3
+
+source-repository head
+  type:                git
+  location:            https://github.com/patrickt/crafty.git
+
+common common-options
+  build-depends:       base ^>= 4.13.0.0
+  
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-uni-patterns
+                       -Wincomplete-record-updates
+  if impl(ghc >= 8.0)
+    ghc-options:       -Wredundant-constraints
+  if impl(ghc >= 8.2)
+    ghc-options:       -fhide-source-paths
+  if impl(ghc >= 8.4)
+    ghc-options:       -Wmissing-export-lists
+                       -Wpartial-fields
+  if impl(ghc >= 8.8)
+    ghc-options:       -Wmissing-deriving-strategies
+
+  default-language:    Haskell2010
+
+library
+  import:              common-options
+  hs-source-dirs:      src
+  exposed-modules:     Crafty
+
+executable crafty
+  import:              common-options
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  build-depends:       crafty
+  ghc-options:         -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
+
+test-suite crafty-test
+  import:              common-options
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       crafty
+  ghc-options:         -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
