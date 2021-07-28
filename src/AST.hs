@@ -1,28 +1,37 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveTraversable #-}
-module AST ( AST(..), convert) where
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module AST (AST (..), Syn, Fix (..), convert) where
 
 import CST qualified
 import Data.Fix (Fix (..))
-import Data.Scientific
 import Data.Functor.Classes
 import Data.Functor.Foldable hiding (Nil)
+import Data.Scientific
+import GHC.Generics (Generic, Generic1)
 import Generic.Data qualified as Data
 import Generic.Data.Orphans ()
-import GHC.Generics (Generic1)
-
+import Ident
 
 data AST a
   = Bool Bool
   | Nil
   | This
   | Number Scientific
-  | Ident CST.Ident
+  | Ident Ident
   | Paren a
   | Super a
   | Infix CST.Infix a a
@@ -39,29 +48,33 @@ data AST a
   | Return a
   | While a a
   | Block [a]
-    deriving stock (Functor, Foldable, Traversable, Generic1)
-    deriving (Eq1, Show1) via Data.Generically1 AST
+  deriving stock (Functor, Foldable, Traversable, Generic, Generic1)
+  deriving (Eq1, Show1) via Data.Generically1 AST
 
 instance Show a => Show (AST a) where
   showsPrec = liftShowsPrec showsPrec showList
+
+instance Eq a => Eq (AST a) where
+  (==) = liftEq (==)
 
 type Syn = Fix AST
 
 class Convert a where
   convert :: a -> Syn
 
-instance Convert CST.Ident where
+instance Convert Ident where
   convert = Fix . Ident
 
 instance Convert CST.Primary where
-  convert = Fix . \case
-    CST.Bool b -> Bool b
-    CST.Nil -> Nil
-    CST.This -> This
-    CST.Number n -> Number (either fromIntegral id n)
-    CST.Ident i -> Ident i
-    CST.Paren a -> Paren (convert a)
-    CST.Super a -> Super (convert a)
+  convert =
+    Fix . \case
+      CST.Bool b -> Bool b
+      CST.Nil -> Nil
+      CST.This -> This
+      CST.Number n -> Number (either fromIntegral id n)
+      CST.Ident i -> Ident i
+      CST.Paren a -> Paren (convert a)
+      CST.Super a -> Super (convert a)
 
 instance Convert CST.Expr where
   convert x = cata go x
@@ -93,52 +106,3 @@ instance Convert CST.Stmt where
     CST.Return a -> Fix (Return (convert a))
     CST.While a b -> Fix (While (convert a) (convert b))
     CST.Block a -> Fix (Block (convert <$> a))
-
-eval :: MonadFail m => Syn -> m Syn
-eval = cataA go
-  where
-    pf = pure . Fix
-    go = \case
-      Bool b -> pf (Bool b)
-      Nil -> pf Nil
-      This -> pf This
-      Number n -> pf (Number n)
-      Ident i -> pf (Ident i)
-      Paren p -> p
-      Infix op l r -> case op of
-        CST.Or -> needBool (||) l r
-        CST.And -> needBool (&&) l r
-        CST.Eq -> Fix . Bool <$> ((==) <$> l <*> r)
-        CST.Neq -> Fix . Bool <$> ((/=) <$> l <*> r)
-        CST.Plus -> needSci (+) Number l r
-        CST.Minus -> needSci (-) Number l r
-        CST.Mult -> needSci (*) Number l r
-        CST.Div -> needSci (/) Number l r
-        CST.LT -> needSci (<) Bool l r
-        CST.LTE -> needSci (<=) Bool l r
-        CST.GT -> needSci (>) Bool l r
-        CST.GTE -> needSci (>=) Bool l r
-      Prefix CST.Not x -> x >>= \case
-        Fix (Bool False) -> pf (Bool True)
-        Fix (Bool True) -> pf (Bool True)
-        _ -> pf (Bool False)
-      Prefix CST.Neg x -> x >>= \case
-        Fix (Number n) -> pf (Number (negate n))
-        _ -> fail "type error: negate"
-
-
-      x -> do
-        res <- sequence x
-        fail ("unimplemented: " <> show res)
-
-needBool :: MonadFail m => (Bool -> Bool -> Bool) -> m Syn -> m Syn -> m Syn
-needBool fn l r = do
-  Bool a <- unFix <$> l
-  Bool b <- unFix <$> r
-  pure (Fix (Bool (fn a b)))
-
-needSci :: MonadFail m => (Scientific -> Scientific -> a) -> (a -> AST Syn) -> m Syn -> m Syn -> m Syn
-needSci fn ctor l r = do
-  Number n <- unFix <$> l
-  Number m <- unFix <$> r
-  pure (Fix (ctor (fn n m)))

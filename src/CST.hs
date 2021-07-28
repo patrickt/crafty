@@ -18,47 +18,19 @@ module CST
     Stmt (..),
     Func (..),
     Decl (..),
+    module Op
   )
 where
 
 import Data.Functor.Foldable hiding (Nil)
 import Data.Functor.Foldable.TH
 import Data.Scientific (Scientific)
-import Data.String (IsString)
-import Data.Text (Text)
 import Prettyprinter (Pretty (..), (<+>))
 import Prettyprinter qualified as Doc
 import Prelude hiding (Ordering (..))
+import Ident
+import Op
 
-newtype Ident = Id Text
-  deriving stock (Eq, Show)
-  deriving newtype (IsString, Pretty)
-
-data Infix = Or | And | Eq | Neq | Plus | Minus | Mult | Div | LT | LTE | GT | GTE
-  deriving stock (Show, Eq, Ord, Enum, Bounded)
-
-instance Pretty Infix where
-  pretty = \case
-    Or -> "or"
-    And -> "and"
-    Eq -> "=="
-    Neq -> "!="
-    Plus -> "+"
-    Minus -> "-"
-    Mult -> "*"
-    Div -> "/"
-    LT -> "<"
-    LTE -> "<="
-    GT -> ">"
-    GTE -> ">="
-
-data Prefix = Not | Neg
-  deriving stock (Show, Eq, Ord, Enum, Bounded)
-
-instance Pretty Prefix where
-  pretty = \case
-    Not -> "!"
-    Neg -> "-"
 
 data Primary
   = Bool Bool
@@ -115,10 +87,10 @@ data Decl
 
 instance Pretty Decl where
   pretty = \case
-    Class id ext fns ->
+    Class ident ext fns ->
       Doc.hsep
         [ "class",
-          pretty id,
+          pretty ident,
           maybe mempty (\a -> "<" <+> pretty a) ext,
           Doc.encloseSep "{" "}" Doc.hardline (fmap pretty fns)
         ]
@@ -146,4 +118,5 @@ instance Pretty Stmt where
     PrintF e -> "print" <+> pretty e
     ReturnF e -> "return" <+> pretty e
     WhileF e s -> "while" <+> Doc.parens (pretty e) <+> s
+    IfF cond block alt -> "if" <+> Doc.parens (pretty cond) <+> block <+> maybe mempty ("else" <+>) alt
     BlockF d -> Doc.encloseSep "{" "}" Doc.hardline (fmap pretty d)

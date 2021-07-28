@@ -25,14 +25,16 @@ common common-options
                      , data-fix
                      , fused-effects
                      , fused-effects-parser
-                     , parsers
                      , generic-data
-                     , prettyprinter
-                     , text
-                     , scientific
-                     , trifecta
+                     , generic-optics
                      , hashable
+                     , optics
+                     , parsers
+                     , prettyprinter
                      , recursion-schemes
+                     , scientific
+                     , text
+                     , trifecta
                      , unordered-containers
 
   ghc-options:         -Wall
@@ -58,6 +60,9 @@ library
   exposed-modules:     Crafty
                        AST
                        CST
+                       Eval
+                       Ident
+                       Op
                        Parse
 
 executable crafty

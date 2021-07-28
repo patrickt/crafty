@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Parse (assignment, expression, testParse, reservedWords) where
+module Parse (assignment, expression, testParse, reservedWords, parse) where
 
 import CST
 import Control.Applicative
@@ -121,6 +121,10 @@ call = foldl' (&) <$> primary <*> many suffix
     args = Token.parens (Call <$$> (expression `sepBy` Token.comma))
     dot = Dot <$$> (Token.dot *> ident)
     suffix = choice [args, dot]
+
+parse :: P.ParserC (Either (Source, P.Err)) a -> String -> Either (Source, P.Err)  a
+parse p s = P.runParserWithString 0 s (Token.whiteSpace *> p <* eof)
+
 
 testParse :: Show a => P.ParserC (Either (Source, P.Err)) a -> String -> IO ()
 testParse p s = do
