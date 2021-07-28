@@ -107,8 +107,9 @@ table =
     [ binary "==" (Infix Eq) Expr.AssocLeft,
       binary "!=" (Infix Neq) Expr.AssocLeft
     ],
-    [ binary "and" (Infix And) Expr.AssocRight,
-      binary "or" (Infix Or) Expr.AssocRight
+    [ binary "and" (Infix And) Expr.AssocRight
+    ],
+    [ binary "or" (Infix Or) Expr.AssocRight
     ]
   ]
   where

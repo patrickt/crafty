@@ -20,7 +20,7 @@ ident = do
 infix' :: Gen Infix
 infix' = do
   b <- Gen.enumBounded
-  b <$ guard (Op.associativity b /= Op.AssocNone)
+  pure b-- <$ guard (Op.associativity b /= Op.AssocNone)
 
 prefix :: Gen Prefix
 prefix = Gen.enumBounded

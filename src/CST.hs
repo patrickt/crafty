@@ -19,7 +19,6 @@ module CST
     Func (..),
     Decl (..),
     module Op,
-    go
   )
 where
 
@@ -62,27 +61,24 @@ data Expr
   | Primary Primary
   deriving stock (Show, Eq)
 
-
-
 makeBaseFunctor ''Expr
 
 instance Pretty Expr where
   pretty = Doc.body . go
-
-go = \case
-  Assign a b -> Doc.prec 14 (Doc.withPrec 14 (go a) <+> "=" <+> Doc.withPrec 15 (go b))
-  Dot a b -> Doc.prec 1 (Doc.withPrec 0 (go a) <> "." <> pretty b)
-  Infix op a b ->
-    let x = Op.precedence op
-        (left, right) =
-          case Op.associativity op of
-            Op.AssocNone -> (x, x)
-            Op.AssocLeft -> (x - 1, x)
-            Op.AssocRight -> (x - 1, x)
-    in Doc.prec x (Doc.withPrec left (go a) <+> pretty op <+> Doc.withPrec right (go b))
-  Prefix op a -> Doc.prec 2 (pretty op <> Doc.withPrec 1 (go a))
-  Call fn args -> Doc.prec 1 (Doc.withPrec 1 (go fn) <> Doc.tupled (fmap (Doc.withPrec 0 . go) args))
-  Primary p -> Doc.atom (pretty p)
+    where
+      go = \case
+        Assign a b -> Doc.prec 14 (Doc.withPrec 14 (go a) <+> "=" <+> Doc.withPrec 15 (go b))
+        Dot a b -> Doc.prec 1 (Doc.withPrec 0 (go a) <> "." <> pretty b)
+        Infix op a b ->
+          let x = Op.precedence op
+              (left, right) =
+                case Op.associativity op of
+                  Op.AssocNone -> (x - 1, x - 1)
+                  _ -> (x - 1, x - 1)
+          in Doc.prec x (Doc.withPrec left (go a) <+> pretty op <+> Doc.withPrec right (go b))
+        Prefix op a -> Doc.prec 2 (pretty op <> Doc.withPrec 1 (go a))
+        Call fn args -> Doc.prec 1 (Doc.withPrec 1 (go fn) <> Doc.tupled (fmap (Doc.withPrec 0 . go) args))
+        Primary p -> Doc.atom (pretty p)
 
 -- pretty = cata \case
 --   AssignF a b -> a <+> "=" <+> b
