@@ -33,26 +33,26 @@ data EvalError
   = Unbound Ident
   | TypeError String (AST Syn)
   | Unimplemented Syn
-  deriving (Eq, Show)
+  deriving stock (Eq, Show)
 
-class Show a => Fixie a where
+class IsAST a where
   fixed :: Iso' a (AST Syn)
 
-instance Fixie (AST Syn) where fixed = simple
-instance Fixie Syn where fixed = coerced
+instance IsAST (AST Syn) where fixed = simple
+instance IsAST Syn where fixed = coerced
 
 demand ::
-  (Has (Throw EvalError) sig m, Fixie ast) =>
+  (Has (Throw EvalError) sig m, IsAST ast) =>
   Prism' (AST Syn) a ->
   String ->
   ast ->
   m a
 demand p name ast = do
-  case ast ^? (fixed % p) of
+  case ast ^? fixed % p of
     Just a -> pure a
     Nothing -> throwError (TypeError name (ast ^. fixed))
 
-eval :: (Has (Throw EvalError) sig m, MonadFail m) => Syn -> m Syn
+eval :: (Has (Throw EvalError) sig m) => Syn -> m Syn
 eval = cataA go
   where
     pf = pure . Fix

@@ -25,8 +25,8 @@ where
 import Data.Functor.Foldable hiding (Nil)
 import Data.Functor.Foldable.TH
 import Data.Scientific (Scientific)
-import Prettyprinter (Pretty (..), (<+>))
-import Prettyprinter qualified as Doc
+import Pretty (Pretty (..), (<+>))
+import Pretty qualified as Doc
 import Prelude hiding (Ordering (..))
 import Ident
 import Op

@@ -64,6 +64,7 @@ library
                        Ident
                        Op
                        Parse
+                       Pretty
 
 executable crafty
   import:              common-options
