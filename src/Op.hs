@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DerivingStrategies #-}
-module Op (module Op) where
+module Op (module Op, Assoc (..)) where
 
 import Prelude hiding (Ordering (..))
 import Prettyprinter (Pretty (..))
+import Text.Parser.Expression (Assoc (..))
 
 data Infix = Or | And | Eq | Neq | Plus | Minus | Mult | Div | LT | LTE | GT | GTE
   deriving stock (Show, Eq, Ord, Enum, Bounded)
@@ -35,6 +36,15 @@ precedence = \case
   Mult -> 3
   Div -> 3
   _ -> 6
+
+associativity :: Infix -> Assoc
+associativity = \case
+  Or -> AssocRight
+  LTE -> AssocNone
+  LT -> AssocNone
+  GT -> AssocNone
+  GTE -> AssocNone
+  _ -> AssocLeft
 
 data Prefix = Not | Neg
   deriving stock (Show, Eq, Ord, Enum, Bounded)

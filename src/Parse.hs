@@ -92,6 +92,7 @@ table =
   [ [ prefix "!" (Prefix Not),
       prefix "-" (Prefix Neg)
     ],
+    -- fixme: use Op.associativity here
     [ binary "*" (Infix Mult) Expr.AssocLeft,
       binary "/" (Infix Div) Expr.AssocLeft
     ],
@@ -129,5 +130,5 @@ parse p s = P.runParserWithString 0 s (Token.whiteSpace *> p <* eof)
 
 testParse :: Show a => P.ParserC (Either (Source, P.Err)) a -> String -> IO ()
 testParse p s = do
-  let v = P.runParserWithString 0 s p
+  let v = parse p s
   either (putDoc . (<> line) . prettyNotice . uncurry P.errToNotice) print v

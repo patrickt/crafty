@@ -5,6 +5,7 @@ module Generators (module Generators) where
 import CST
 import Control.Monad
 import Hedgehog
+import Op qualified
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Parse qualified
@@ -17,7 +18,9 @@ ident = do
   pure (Id name)
 
 infix' :: Gen Infix
-infix' = Gen.enumBounded
+infix' = do
+  b <- Gen.enumBounded
+  b <$ guard (Op.associativity b /= Op.AssocNone)
 
 prefix :: Gen Prefix
 prefix = Gen.enumBounded
