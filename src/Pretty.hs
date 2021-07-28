@@ -26,5 +26,5 @@ atom = Prec Nothing
 
 withPrec :: Int -> Prec (Doc a) -> Doc a
 withPrec lev (Prec mCurr bod)
-  | maybe False (lev >) mCurr = parens bod
+  | maybe False (lev <) mCurr = parens bod
   | otherwise = bod

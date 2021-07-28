@@ -52,8 +52,7 @@ expr =
     Gen.choice
     [ Primary <$> primary
     ]
-    [ Gen.subterm expr (Primary . Paren)
-    , Gen.subtermM2 expr expr (\a b -> Infix <$> infix' <*> pure a <*> pure b)
+    [ Gen.subtermM2 expr expr (\a b -> Infix <$> infix' <*> pure a <*> pure b)
     , Gen.subtermM expr (\a -> Dot a <$> ident)
     , Gen.subtermM expr (\a -> Prefix <$> prefix <*> pure a)
     , Gen.subterm expr (`Call` [])

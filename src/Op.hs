@@ -24,6 +24,18 @@ instance Pretty Infix where
     GT -> ">"
     GTE -> ">="
 
+precedence :: Infix -> Int
+precedence = \case
+  Or -> 12
+  And -> 11
+  Eq -> 7
+  Neq -> 7
+  Plus -> 4
+  Minus -> 4
+  Mult -> 3
+  Div -> 3
+  _ -> 6
+
 data Prefix = Not | Neg
   deriving stock (Show, Eq, Ord, Enum, Bounded)
 

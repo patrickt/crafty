@@ -59,19 +59,20 @@ reserved :: (TokenParsing m, Monad m) => String -> m ()
 reserved = Token.reserve style
 
 primary :: (TokenParsing m, Monad m) => m Expr
-primary =
-  Primary
-    <$> choice
-      [ Bool True <$ reserved "true",
-        Bool False <$ reserved "false",
-        Nil <$ reserved "nil",
-        This <$ reserved "this",
-        Number <$> Token.naturalOrScientific,
-        Ident <$> ident,
-        Paren <$> Token.parens assignment,
-        Super <$> (reserved "super" *> Token.dot *> ident)
-      ]
-    <?> "primary expression"
+primary = prims <|> Token.parens expression <?> "primary expression"
+  where
+    prims =
+      Primary
+        <$> choice
+          [ Bool True <$ reserved "true",
+            Bool False <$ reserved "false",
+            Nil <$ reserved "nil",
+            This <$ reserved "this",
+            Number <$> Token.naturalOrScientific,
+            Ident <$> ident,
+            Super <$> (reserved "super" *> Token.dot *> ident)
+          ]
+
 
 assignment :: (TokenParsing m, Monad m) => m Expr
 assignment = try assign <|> expression

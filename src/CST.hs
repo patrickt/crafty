@@ -18,19 +18,18 @@ module CST
     Stmt (..),
     Func (..),
     Decl (..),
-    module Op
+    module Op,
   )
 where
 
 import Data.Functor.Foldable hiding (Nil)
 import Data.Functor.Foldable.TH
 import Data.Scientific (Scientific)
+import Ident
+import Op
 import Pretty (Pretty (..), (<+>))
 import Pretty qualified as Doc
 import Prelude hiding (Ordering (..))
-import Ident
-import Op
-
 
 data Primary
   = Bool Bool
@@ -62,22 +61,35 @@ data Expr
   | Primary Primary
   deriving stock (Show, Eq)
 
+
+
 makeBaseFunctor ''Expr
 
 instance Pretty Expr where
-  pretty = cata \case
-    AssignF a b -> a <+> "=" <+> b
-    InfixF op a b -> a <+> pretty op <+> b
-    DotF l r -> l <> "." <> pretty r
-    PrefixF op a -> pretty op <> a
-    CallF fn args -> fn <> Doc.tupled args
-    PrimaryF p -> pretty p
+  pretty = Doc.body . go
+    where
+      go = \case
+        Assign a b -> Doc.prec 14 (Doc.withPrec 14 (go a) <+> "=" <+> Doc.withPrec 15 (go b))
+        Dot a b -> Doc.prec 1 (Doc.withPrec 2 (go a) <> "." <> pretty b)
+        Infix op a b ->
+          let x = Op.precedence op
+           in Doc.prec x (Doc.withPrec (pred x) (go a) <+> pretty op <+> Doc.withPrec x (go b))
+        Prefix op a -> Doc.prec 2 (pretty op <> Doc.withPrec 1 (go a))
+        Call fn args -> Doc.prec 1 (Doc.withPrec 1 (go fn) <> Doc.tupled (fmap (Doc.withPrec 0 . go) args))
+        Primary p -> Doc.atom (pretty p)
+
+-- pretty = cata \case
+--   AssignF a b -> a <+> "=" <+> b
+--   InfixF op a b -> a <+> pretty op <+> b
+--   DotF l r -> l <> "." <> pretty r
+--   PrefixF op a -> pretty op <> a
+--   CallF fn args -> fn <> Doc.tupled args
+--   PrimaryF p -> pretty p
 
 data Func = Func Ident [Ident] [Decl]
 
 instance Pretty Func where
   pretty (Func n args b) = pretty n <> Doc.tupled (fmap pretty args) <+> Doc.encloseSep "{" "}" Doc.hardline (fmap pretty b)
-
 
 data Decl
   = Class Ident (Maybe Ident) [Func]
