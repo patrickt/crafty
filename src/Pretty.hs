@@ -1,4 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Pretty
   ( module Prettyprinter
   , Prec (..)
@@ -8,7 +12,11 @@ module Pretty
   )
   where
 
+import Data.Fix (Fix (..))
 import Prettyprinter
+
+instance (forall a . Pretty a => Pretty (f a)) => Pretty (Fix f) where
+  pretty = pretty . unFix
 
 -- Snatched from the Semantic definition. Correctly pretty-printing with precedence
 -- is surprisingly, and sometimes depressingly, difficult.

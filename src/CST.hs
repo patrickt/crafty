@@ -16,6 +16,7 @@ module CST
     Infix (..),
     Prefix (..),
     Stmt (..),
+    StmtF (..),
     Func (..),
     Decl (..),
     module Op,
@@ -37,7 +38,6 @@ data Primary
   | This
   | Number (Either Integer Scientific)
   | Ident Ident
-  | Paren Expr
   | Super Ident
   deriving stock (Show, Eq)
 
@@ -49,7 +49,6 @@ instance Pretty Primary where
     This -> "this"
     Number n -> either pretty Doc.viaShow n
     Ident i -> pretty i
-    Paren e -> Doc.parens (pretty e)
     Super i -> "super." <> pretty i
 
 data Expr
@@ -64,29 +63,16 @@ data Expr
 makeBaseFunctor ''Expr
 
 instance Pretty Expr where
-  pretty = Doc.body . go
+  pretty = Doc.body . cata go
     where
       go = \case
-        Assign a b -> Doc.prec 14 (Doc.withPrec 14 (go a) <+> "=" <+> Doc.withPrec 15 (go b))
-        Dot a b -> Doc.prec 1 (Doc.withPrec 0 (go a) <> "." <> pretty b)
-        Infix op a b ->
-          let x = Op.precedence op
-              (left, right) =
-                case Op.associativity op of
-                  Op.AssocNone -> (x - 1, x - 1)
-                  _ -> (x - 1, x - 1)
-          in Doc.prec x (Doc.withPrec left (go a) <+> pretty op <+> Doc.withPrec right (go b))
-        Prefix op a -> Doc.prec 2 (pretty op <> Doc.withPrec 1 (go a))
-        Call fn args -> Doc.prec 1 (Doc.withPrec 1 (go fn) <> Doc.tupled (fmap (Doc.withPrec 0 . go) args))
-        Primary p -> Doc.atom (pretty p)
-
--- pretty = cata \case
---   AssignF a b -> a <+> "=" <+> b
---   InfixF op a b -> a <+> pretty op <+> b
---   DotF l r -> l <> "." <> pretty r
---   PrefixF op a -> pretty op <> a
---   CallF fn args -> fn <> Doc.tupled args
---   PrimaryF p -> pretty p
+        AssignF a b -> Doc.prec 14 (Doc.withPrec 14 a <+> "=" <+> Doc.withPrec 15 b)
+        DotF a b -> Doc.prec 1 (Doc.withPrec 0 a <> "." <> pretty b)
+        InfixF op a b -> let x = Op.precedence op - 1 in
+          Doc.prec (x + 1) (Doc.withPrec x a <+> pretty op <+> Doc.withPrec x b)
+        PrefixF op a -> Doc.prec 2 (pretty op <> Doc.withPrec 1 a)
+        CallF fn args -> Doc.prec 1 (Doc.withPrec 1 fn <> Doc.tupled (fmap (Doc.withPrec 0) args))
+        PrimaryF p -> Doc.atom (pretty p)
 
 data Func = Func Ident [Ident] [Decl]
 

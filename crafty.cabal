@@ -22,8 +22,11 @@ source-repository head
 
 common common-options
   build-depends:       base ^>= 4.14.0.0
+                     , containers
+                     , comonad
                      , data-fix
                      , fused-effects
+                     , fused-effects-optics
                      , fused-effects-parser
                      , generic-data
                      , generic-optics
@@ -33,6 +36,7 @@ common common-options
                      , prettyprinter
                      , recursion-schemes
                      , scientific
+                     , vector
                      , text
                      , trifecta
                      , unordered-containers
@@ -59,12 +63,16 @@ library
   hs-source-dirs:      src
   exposed-modules:     Crafty
                        AST
+                       Bytecode
                        CST
+                       Env
                        Eval
+                       Heap
                        Ident
                        Op
                        Parse
                        Pretty
+                       Stack
 
 executable crafty
   import:              common-options
